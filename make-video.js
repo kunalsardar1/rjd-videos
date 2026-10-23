@@ -22,11 +22,45 @@ const NAMES = ['hook', 'title', 'pay', 'needs', 'cta'];
 const env = process.env;
 const log = (...a) => console.log(new Date().toISOString().slice(11, 19), ...a);
 
-async function webApp(body) {
-  const res = await fetch(env.RJD_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(Object.assign({ key: env.RJD_KEY }, body)), redirect: 'follow' });
-  const text = await res.text();
-  let j; try { j = JSON.parse(text); } catch (e) { throw new Error('Web app answered ' + res.status + ': ' + text.slice(0, 300)); }
-  if (!j.ok) throw new Error('Web app: ' + (j.error || 'failed'));
+/* A plain HTTPS request that waits as long as Apps Script may take (up to 6 minutes; Node's fetch gives up after 5)
+   and follows the web app's redirect to its answer. */
+function request(url, method, body, ms, hops) {
+  return new Promise((resolve, reject) => {
+    const u = new URL(url);
+    const mod = u.protocol === 'http:' ? require('http') : require('https');
+    const headers = body ? { 'Content-Type': 'text/plain;charset=utf-8', 'Content-Length': Buffer.byteLength(body) } : {};
+    const req = mod.request(u, { method, headers }, res => {
+      if ([301, 302, 303, 307, 308].includes(res.statusCode) && res.headers.location && (hops || 0) < 5) {
+        res.resume();
+        const keep = res.statusCode === 307 || res.statusCode === 308;
+        return resolve(request(new URL(res.headers.location, url).toString(), keep ? method : 'GET', keep ? body : null, ms, (hops || 0) + 1));
+      }
+      const chunks = [];
+      res.on('data', c => chunks.push(c));
+      res.on('end', () => resolve({ status: res.statusCode, text: Buffer.concat(chunks).toString('utf8') }));
+    });
+    req.setTimeout(ms, () => req.destroy(new Error('the web app did not answer within ' + Math.round(ms / 1000) + ' seconds')));
+    req.on('error', reject);
+    if (body) req.write(body);
+    req.end();
+  });
+}
+
+async function webApp(body, ms) {
+  const url = (env.RJD_URL || '').trim();
+  if (!/^https?:\/\/[^\s]+\/exec$/.test(url)) {
+    throw new Error('The RJD_URL secret must be the Web app URL from Apps Script (https://script.google.com/macros/s/.../exec)');
+  }
+  const res = await request(url, 'POST', JSON.stringify(Object.assign({ key: (env.RJD_KEY || '').trim() }, body)), ms || 420000);
+  let j; try { j = JSON.parse(res.text); } catch (e) {
+    const t = res.text.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+    throw new Error('Web app answered ' + res.status + ' (check the deployment: Web app, Execute as Me, Who has access: Anyone): ' + t.slice(0, 200));
+  }
+  if (!j.ok) {
+    if (j.error === 'wrong key') throw new Error('Web app: wrong key. The RJD_KEY secret must be the RJD_KEY that setupVideo shows');
+    if (j.error === 'unknown action') throw new Error('Web app runs old code: Apps Script > Deploy > Manage deployments > pencil > Version: New version > Deploy');
+    throw new Error('Web app: ' + (j.error || 'failed'));
+  }
   return j;
 }
 
@@ -100,10 +134,15 @@ function saveResult(r) { fs.writeFileSync(path.join(OUT, 'result.json'), JSON.st
   fs.mkdirSync(OUT, { recursive: true });
   // 1. the job, script, captions and voice
   const manual = env.GITHUB_EVENT_NAME ? env.GITHUB_EVENT_NAME !== 'schedule' : true;
+  if (!env.FIXTURE) {
+    const ping = await webApp({ action: 'ping' }, 90000);   // quick check of the address, the key and the code version
+    log('Web app OK, video mode:', ping.mode);
+  }
+  const t0 = Date.now();
   const next = env.FIXTURE ? JSON.parse(fs.readFileSync(env.FIXTURE, 'utf8')) :
     await webApp({ action: 'next', trigger: manual ? 'manual' : 'schedule', bucket: env.KIND || null, test: /^(true|yes|1)$/i.test(env.TEST || '') || undefined });
   if (next.skip) { log('Nothing to make:', next.skip); saveResult({ skip: next.skip }); return; }
-  log('Job:', next.job.title, '|', next.bucket, '| voice:', next.voice || (next.wav ? 'yes' : 'no'), next.test ? '| TEST' : '');
+  log('Job:', next.job.title, '|', next.bucket, '| voice:', next.voice || (next.wav ? 'yes' : 'no'), next.test ? '| TEST' : '', '| web app took', Math.round((Date.now() - t0) / 1000), 's');
   let segs = null;
   const voice = path.join(OUT, 'voice.wav');
   if (next.wav) {
@@ -147,4 +186,8 @@ function saveResult(r) { fs.writeFileSync(path.join(OUT, 'result.json'), JSON.st
   }
   saveResult({ id: next.id, kind: next.bucket, job: next.job.title, test: !!next.test, results });
   if (Object.values(results).every(v => /^failed|^off/.test(String(v)))) process.exit(1);
-})().catch(e => { console.error(e); process.exit(1); });
+})().catch(e => {
+  console.error(e);
+  try { saveResult({ error: String(e && e.message ? e.message : e).slice(0, 300) }); } catch (x) { /* nothing to save */ }
+  process.exit(1);
+});
