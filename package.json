@@ -1,0 +1,22 @@
+{
+  "name": "rjd-videos",
+  "private": true,
+  "description": "Remote Job Drop: one 15-second job video per run, posted by the RJD Autopilot web app",
+  "scripts": {
+    "video": "node make-video.js"
+  },
+  "dependencies": {
+    "@fontsource/inter": "5.1.0",
+    "@fontsource/noto-sans-bengali": "5.1.0",
+    "@fontsource/noto-sans-devanagari": "5.1.0",
+    "@fontsource/noto-sans-gujarati": "5.1.0",
+    "@fontsource/noto-sans-gurmukhi": "5.1.0",
+    "@fontsource/noto-sans-kannada": "5.1.0",
+    "@fontsource/noto-sans-malayalam": "5.1.0",
+    "@fontsource/noto-sans-oriya": "5.1.0",
+    "@fontsource/noto-sans-tamil": "5.1.0",
+    "@fontsource/noto-sans-telugu": "5.1.0",
+    "@twemoji/svg": "15.0.0",
+    "playwright-core": "1.56.1"
+  }
+}
