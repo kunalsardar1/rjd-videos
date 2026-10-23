@@ -147,7 +147,9 @@ function saveResult(r) { fs.writeFileSync(path.join(OUT, 'result.json'), JSON.st
   const voice = path.join(OUT, 'voice.wav');
   if (next.wav) {
     fs.writeFileSync(voice, Buffer.from(next.wav, 'base64'));
-    const found = JSON.parse(execFileSync('python3', [path.join(DIR, 'audio.py'), 'split', voice, String(NAMES.length)]).toString());
+    // cut the voice into one piece per line, at the pauses that fit where each line should end
+    const found = JSON.parse(execFileSync('python3', [path.join(DIR, 'audio.py'), 'split', voice, String(NAMES.length), JSON.stringify(next.lines || [])]).toString());
+    log('Voice pieces:', found.map(p => p.s.toFixed(2) + '-' + p.e.toFixed(2)).join(' | '));
     if (found.length === NAMES.length) segs = found;
     else log('Voice pauses not found (' + found.length + ' pieces); using the voice as one piece.');
     if (!segs && found.length) {

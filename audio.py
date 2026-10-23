@@ -1,6 +1,7 @@
 """Sound for the job videos.
 
-  python3 audio.py split VOICE.wav N             -> prints JSON: N speech segments [{"s":..,"e":..}] found at the pauses
+  python3 audio.py split VOICE.wav N [LINES.json] -> prints JSON: N speech segments [{"s":..,"e":..}], cut at the pauses
+                                                     that fit where each line should end
   python3 audio.py mix PLAN.json OUT.wav         -> slow lo-fi music + sound effects + the voice (music dips under the voice)
 
 PLAN.json: {"end": seconds, "sfx": [{"t","type","g"}], "voice": "voice.wav" or null,
@@ -38,7 +39,26 @@ def read_voice(path):
     return x
 
 
-def split(path, n):
+PAUSE_W = 1.0   # how much a longer pause counts against being far from where the line should end
+
+
+def speech_units(line):
+    """Rough speaking length of a line: letters and Devanagari signs count 1, a digit about 2.5 (numbers are said in words)."""
+    u = 0.0
+    for ch in line:
+        if ch.isdigit():
+            u += 2.5
+        elif ch.isalpha() or '\u0900' <= ch <= '\u097f':
+            u += 1.0
+    return max(u, 4.0)
+
+
+def split(path, n, weights=None):
+    """The voice cut into n pieces, one per line, at the pauses between the lines.
+
+    Pauses inside a sentence (commas, breaths) can be as long as the pause between two lines, so the longest pauses
+    alone are not enough. Each cut goes to the pause that is long AND close to where that line should end (from the
+    length of the lines), chosen together so the cuts stay in order."""
     x = read_voice(path)
     hop = int(0.02 * SR)
     rms = np.array([np.sqrt(np.mean(x[i:i + hop] ** 2)) for i in range(0, len(x) - hop, hop)])
@@ -49,22 +69,63 @@ def split(path, n):
     idx = np.where(loud)[0]
     if not len(idx):
         return []
-    first, last = idx[0], idx[-1]
-    runs, i = [], first
-    while i <= last:
+    first, last = int(idx[0]), int(idx[-1]) + 1
+    t0, t1 = first * 0.02, last * 0.02
+    if n <= 1:
+        return [{"s": round(t0, 3), "e": round(t1, 3)}]
+    # pauses: runs of quiet frames inside the speech, at least 60 ms
+    gaps, i = [], first
+    while i < last:
         if not loud[i]:
             j = i
-            while j <= last and not loud[j]:
+            while j < last and not loud[j]:
                 j += 1
-            runs.append((i, j))
+            if (j - i) >= 3:
+                gaps.append((i * 0.02, j * 0.02))
             i = j
         else:
             i += 1
-    runs = [r for r in runs if (r[1] - r[0]) * 0.02 >= 0.12]
-    runs = sorted(sorted(runs, key=lambda r: r[1] - r[0], reverse=True)[:max(0, n - 1)])
-    cuts = [first] + [x for r in runs for x in r] + [last + 1]
-    segs = [{"s": round(cuts[k] * 0.02, 3), "e": round(cuts[k + 1] * 0.02, 3)} for k in range(0, len(cuts), 2)]
-    return segs
+    w = [float(v) for v in (weights or [1.0] * n)][:n]
+    w += [w[-1] if w else 1.0] * (n - len(w))
+    tot = sum(w)
+    cum = np.cumsum(w)[:-1] / tot
+    # where each line should end: the point where that share of the speaking time (pauses left out) has been said
+    spoken = np.cumsum(loud[first:last]) * 0.02
+    want = [t0 + float(np.searchsorted(spoken, c * spoken[-1])) * 0.02 for c in cum]
+    k = n - 1
+    if len(gaps) >= k:
+        # dynamic programming: cuts in order, each piece at least 0.35 s, cost = distance - PAUSE_W x pause length
+        m = len(gaps)
+        INF = 1e9
+        cost = [[INF] * m for _ in range(k)]
+        back = [[-1] * m for _ in range(k)]
+        for j, (gs, ge) in enumerate(gaps):
+            c = (gs + ge) / 2
+            if gs - t0 >= 0.35:
+                cost[0][j] = abs(c - want[0]) - PAUSE_W * (ge - gs)
+        for q in range(1, k):
+            for j, (gs, ge) in enumerate(gaps):
+                c = (gs + ge) / 2
+                here = abs(c - want[q]) - PAUSE_W * (ge - gs)
+                best, bi = INF, -1
+                for i2 in range(j):
+                    if cost[q - 1][i2] < INF and gs - gaps[i2][1] >= 0.35 and cost[q - 1][i2] < best:
+                        best, bi = cost[q - 1][i2], i2
+                if bi >= 0:
+                    cost[q][j], back[q][j] = best + here, bi
+        ends = [j for j in range(m) if cost[k - 1][j] < INF and t1 - gaps[j][1] >= 0.35]
+        if ends:
+            j = min(ends, key=lambda e: cost[k - 1][e])
+            chosen = []
+            for q in range(k - 1, -1, -1):
+                chosen.append(gaps[j])
+                j = back[q][j]
+            chosen.reverse()
+            cuts = [t0] + [v for g in chosen for v in g] + [t1]
+            return [{"s": round(cuts[a], 3), "e": round(cuts[a + 1], 3)} for a in range(0, len(cuts), 2)]
+    # too few pauses: share the speech by the length of each line
+    edges = [t0] + want + [t1]
+    return [{"s": round(edges[a], 3), "e": round(edges[a + 1], 3)} for a in range(n)]
 
 
 # ---------------- music: slow lo-fi, 72 bpm ----------------
@@ -253,6 +314,7 @@ def mix(plan_path, out_path):
 
 if __name__ == '__main__':
     if sys.argv[1] == 'split':
-        print(json.dumps(split(sys.argv[2], int(sys.argv[3]))))
+        lines = json.loads(sys.argv[4]) if len(sys.argv) > 4 else None
+        print(json.dumps(split(sys.argv[2], int(sys.argv[3]), [speech_units(l) for l in lines] if lines else None)))
     elif sys.argv[1] == 'mix':
         mix(sys.argv[2], sys.argv[3])
