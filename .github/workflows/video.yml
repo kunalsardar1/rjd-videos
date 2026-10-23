@@ -1,1 +1,85 @@
+name: Job video
 
+# Ten times a day: make one 15-second job video and post it (through the RJD Autopilot web app).
+# India time = UTC + 5:30. GitHub can start a scheduled run some minutes late.
+on:
+  schedule:
+    - cron: '37 3 * * *'    # about 09:07 India time
+    - cron: '7 5 * * *'     # about 10:37
+    - cron: '37 6 * * *'    # about 12:07
+    - cron: '7 8 * * *'     # about 13:37
+    - cron: '37 9 * * *'    # about 15:07
+    - cron: '7 11 * * *'    # about 16:37
+    - cron: '37 12 * * *'   # about 18:07
+    - cron: '7 14 * * *'    # about 19:37
+    - cron: '37 15 * * *'   # about 21:07
+    - cron: '52 16 * * *'   # about 22:22
+  workflow_dispatch:
+    inputs:
+      kind:
+        description: 'Kind of job (leave empty for the next one in the day''s order): hindi, fast, indian, specialist, english'
+        required: false
+        default: ''
+      test:
+        description: 'Test only: send the video to me on Telegram, do not post it'
+        type: boolean
+        default: false
+
+concurrency:
+  group: job-video
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  video:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: |
+          npm ci
+          npx playwright-core install --with-deps chromium
+          sudo apt-get install -y -qq ffmpeg python3-numpy python3-scipy
+
+      - name: Make and post the video
+        env:
+          RJD_URL: ${{ secrets.RJD_URL }}
+          RJD_KEY: ${{ secrets.RJD_KEY }}
+          KIND: ${{ inputs.kind }}
+          TEST: ${{ inputs.test }}
+        run: node make-video.js
+
+      - name: Keep the video for 7 days (open this run, then Artifacts)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: video
+          path: out/video.mp4
+          retention-days: 7
+          if-no-files-found: ignore
+
+      # One line per run. The commit also keeps the schedule switched on: GitHub pauses schedules in a public
+      # repository that has had no commits for 60 days.
+      - name: Note the run in videos-log.txt
+        if: always()
+        run: |
+          node -e "
+            const fs = require('fs'); let r = {};
+            try { r = JSON.parse(fs.readFileSync('out/result.json', 'utf8')); } catch (e) { r = { error: 'no video (see the run log)' }; }
+            const line = [new Date().toISOString().slice(0, 16).replace('T', ' ') + ' UTC', r.kind || '', r.job || r.skip || r.error || '',
+              r.test ? 'TEST' : '', Object.entries(r.results || {}).map(([k, v]) => k + ': ' + v).join(', ')].join(' | ');
+            fs.appendFileSync('videos-log.txt', line + '\n');"
+          git config user.name "rjd-videos"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add videos-log.txt
+          git commit -q -m "Video log" || exit 0
+          git pull -q --rebase && git push -q
