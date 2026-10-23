@@ -1,2 +1,3 @@
 2026-10-23 07:19 UTC |  | no video (see the run log) |  | 
 2026-10-23 08:36 UTC |  | VIDEO_MODE is test: only videos started by hand are made. |  | 
+2026-10-23 08:56 UTC | hindi | Hindi Transcriber (AI Trainer) | TEST | preview: emailed to you
