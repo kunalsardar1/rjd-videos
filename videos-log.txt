@@ -73,3 +73,4 @@
 2026-10-29 16:33 UTC | fast | AI Jailbreak & Prompt-Injection Security Ex… |  | telegram: msg 616, facebook: video 1852120770248469, youtube: off, instagram: reel 18640314454043044, threads: failed: Threads could not process the video (UNKNOWN)
 2026-10-29 17:37 UTC | indian | PDF Annotation & Transcription… – Malayalam |  | telegram: msg 619, facebook: video 1108387105376073, youtube: off, instagram: reel 18163315483500211, threads: failed: Threads could not process the video (UNKNOWN)
 2026-10-30 04:25 UTC | indian | Marathi Subject Matter Expert – Audi… – Pune |  | telegram: msg 624, facebook: off, youtube: https://youtu.be/uOkeP0_7ayU, instagram: off, threads: off
+2026-10-30 05:44 UTC | fast | BA - Text Situated Alignment Generali… - III |  | telegram: msg 627, facebook: off, youtube: https://youtu.be/k6F6QJsNH3Q, instagram: off, threads: off
