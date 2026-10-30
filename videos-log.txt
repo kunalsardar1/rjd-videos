@@ -72,3 +72,4 @@
 2026-10-29 14:58 UTC | indian | AI Evaluator – Gujarati |  | telegram: msg 606, facebook: video 2287426065430599, youtube: off, instagram: reel 18500559124099037, threads: failed: Threads could not process the video (UNKNOWN)
 2026-10-29 16:33 UTC | fast | AI Jailbreak & Prompt-Injection Security Ex… |  | telegram: msg 616, facebook: video 1852120770248469, youtube: off, instagram: reel 18640314454043044, threads: failed: Threads could not process the video (UNKNOWN)
 2026-10-29 17:37 UTC | indian | PDF Annotation & Transcription… – Malayalam |  | telegram: msg 619, facebook: video 1108387105376073, youtube: off, instagram: reel 18163315483500211, threads: failed: Threads could not process the video (UNKNOWN)
+2026-10-30 04:25 UTC | indian | Marathi Subject Matter Expert – Audi… – Pune |  | telegram: msg 624, facebook: off, youtube: https://youtu.be/uOkeP0_7ayU, instagram: off, threads: off
