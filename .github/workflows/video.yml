@@ -1,19 +1,14 @@
 name: Job video
 
-# Ten times a day: make one 15-second job video and post it (through the RJD Autopilot web app).
+# Five times a day, afternoon and evening: make one 15-second job video and post it (through the RJD Autopilot web app).
 # India time = UTC + 5:30. GitHub can start a scheduled run some minutes late.
 on:
   schedule:
-    - cron: '37 3 * * *'    # about 09:07 India time
-    - cron: '7 5 * * *'     # about 10:37
-    - cron: '37 6 * * *'    # about 12:07
-    - cron: '7 8 * * *'     # about 13:37
-    - cron: '37 9 * * *'    # about 15:07
-    - cron: '7 11 * * *'    # about 16:37
-    - cron: '37 12 * * *'   # about 18:07
-    - cron: '7 14 * * *'    # about 19:37
-    - cron: '37 15 * * *'   # about 21:07
-    - cron: '52 16 * * *'   # about 22:22
+    - cron: '7 7 * * *'     # about 12:37 India time
+    - cron: '37 10 * * *'   # about 16:07
+    - cron: '7 13 * * *'    # about 18:37
+    - cron: '37 14 * * *'   # about 20:07
+    - cron: '7 16 * * *'    # about 21:37
   workflow_dispatch:
     inputs:
       kind:
