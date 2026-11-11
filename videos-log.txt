@@ -138,3 +138,4 @@
 2026-11-11 11:35 UTC | fast | Audio Annotation & Voice Recording Speciali… |  | telegram: msg 883, facebook: video 1476667431072258, youtube: https://youtu.be/WAiCSSqyFgc, instagram: reel 18153081214536889, threads: failed: Threads could not process the video (UNKNOWN)
 2026-11-11 14:29 UTC |  | no video (see the run log) |  | 
 2026-11-11 15:32 UTC |  | no video (see the run log) |  | 
+2026-11-11 17:07 UTC | indian | Foreground Voice Talent – Hungarian, Tamil,… |  | telegram: msg 893, facebook: video 29277765431884392, youtube: https://youtu.be/sj6VGgRMJOA, instagram: reel 18044997518834019, threads: failed: Threads could not process the video (UNKNOWN)
