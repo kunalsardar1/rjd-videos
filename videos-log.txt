@@ -140,3 +140,4 @@
 2026-11-11 15:32 UTC |  | no video (see the run log) |  | 
 2026-11-11 17:07 UTC | indian | Foreground Voice Talent – Hungarian, Tamil,… |  | telegram: msg 893, facebook: video 29277765431884392, youtube: https://youtu.be/sj6VGgRMJOA, instagram: reel 18044997518834019, threads: failed: Threads could not process the video (UNKNOWN)
 2026-11-12 08:27 UTC | indian | Tamil Specialist |  | telegram: msg 899, facebook: video 1754006865697643, youtube: https://youtu.be/wUdGMyJekwc, instagram: reel 17941026696121991, threads: failed: Threads could not process the video (UNKNOWN)
+2026-11-12 11:36 UTC | fast | Audio Annotation & Speech Evaluation Specia… |  | telegram: msg 902, facebook: video 1574088364475664, youtube: https://youtu.be/1O_-EpeaYMk, instagram: reel 18082193024709542, threads: failed: Threads could not process the video (UNKNOWN)
