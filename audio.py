@@ -8,7 +8,7 @@ PLAN.json: {"end": seconds, "sfx": [{"t","type","g"}], "voice": "voice.wav" or n
             "pieces": [{"from": s, "to": e, "at": t}, ...]}   (voice pieces placed at their scene times)
 All sounds are made here, so there is nothing to license.
 """
-import json, sys
+import json, sys, unicodedata
 import numpy as np
 from scipy.signal import butter, sosfilt, resample_poly
 from scipy.io import wavfile
@@ -39,16 +39,18 @@ def read_voice(path):
     return x
 
 
-PAUSE_W = 1.0   # how much a longer pause counts against being far from where the line should end
+PAUSE_W = 4.0   # how much a longer pause counts against being far from where the line should end
+MIN_GAP = 5     # a cut needs a pause of at least this many 20 ms frames (100 ms); shorter ones are inside words
 
 
 def speech_units(line):
-    """Rough speaking length of a line: letters and Devanagari signs count 1, a digit about 2.5 (numbers are said in words)."""
+    """Rough speaking length of a line: each letter and vowel sign (any script) counts 1, a digit about 2.5 (numbers are
+    said in words)."""
     u = 0.0
     for ch in line:
         if ch.isdigit():
             u += 2.5
-        elif ch.isalpha() or '\u0900' <= ch <= '\u097f':
+        elif unicodedata.category(ch)[0] in 'LM':
             u += 1.0
     return max(u, 4.0)
 
@@ -80,7 +82,7 @@ def split(path, n, weights=None):
             j = i
             while j < last and not loud[j]:
                 j += 1
-            if (j - i) >= 3:
+            if (j - i) >= MIN_GAP:
                 gaps.append((i * 0.02, j * 0.02))
             i = j
         else:

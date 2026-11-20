@@ -16,8 +16,8 @@ const fs = require('fs'), path = require('path'), { execFileSync } = require('ch
 const { chromium } = require('playwright-core');
 
 const DIR = __dirname, OUT = path.join(DIR, 'out');
-const FPS = 30, SUB = 3;
-const MIN = { hook: 2.0, title: 2.4, pay: 2.3, needs: 2.4, cta: 3.4 };
+const FPS = 30, SUB = parseInt(process.env.SUB, 10) || 3;
+const MIN = { hook: 1.4, title: 1.8, pay: 2.0, needs: 2.0, cta: 3.0 };
 const NAMES = ['hook', 'title', 'pay', 'needs', 'cta'];
 const env = process.env;
 const log = (...a) => console.log(new Date().toISOString().slice(11, 19), ...a);
@@ -83,24 +83,29 @@ function fontsCss() {
   return css;
 }
 
-/** Scene times from the voice pieces (or fixed times without a voice). */
+/** Scene times from the voice (or fixed times without a voice).
+    The voice is never cut: it plays as one piece, exactly as it was spoken, and each scene starts just before its
+    line is heard. A cut in the wrong place can then only move a scene change, never break a word.
+    Returns the scenes, the one voice piece for the mix, and when each line is spoken (for the words on screen). */
 function timeline(segs) {
-  const scenes = [], pieces = [];
+  const scenes = [], pieces = [], speak = [];
   if (!segs) {
     let t = 0;
-    NAMES.forEach(n => { const d = { hook: 2.4, title: 2.9, pay: 2.6, needs: 2.8, cta: 3.8 }[n]; scenes.push({ name: n, s: +t.toFixed(3), e: +(t + d).toFixed(3) }); t += d; });
-    return { scenes, pieces, end: t };
+    NAMES.forEach(n => { const d = { hook: 2.8, title: 3.4, pay: 3.0, needs: 3.4, cta: 4.4 }[n]; scenes.push({ name: n, s: +t.toFixed(3), e: +(t + d).toFixed(3) }); t += d; });
+    return { scenes, pieces, speak, end: t };
   }
-  let t = 0;
+  const LEAD = 0.25;                       // the first word is heard this long after the video starts
+  const shift = LEAD - segs[0].s;
+  pieces.push({ from: segs[0].s, to: segs[segs.length - 1].e, at: LEAD });
+  segs.forEach(g => speak.push({ s: +(g.s + shift).toFixed(3), e: +(g.e + shift).toFixed(3) }));
   NAMES.forEach((n, i) => {
-    const seg = segs[i], dur = seg.e - seg.s;
-    const at = t + (i === 0 ? 0.35 : 0.3);
-    pieces.push({ from: seg.s, to: seg.e, at: +at.toFixed(3) });
-    const s = t, e = i === NAMES.length - 1 ? Math.max(at + dur + 1.0, s + MIN[n]) : Math.max(at + dur + 0.12, s + MIN[n]);
-    scenes.push({ name: n, s: +s.toFixed(3), e: +e.toFixed(3) });
-    t = e;
+    const s = i === 0 ? 0 : Math.max(speak[i - 1].e + 0.02, speak[i].s - 0.15);
+    scenes.push({ name: n, s: +s.toFixed(3), e: 0 });
   });
-  return { scenes, pieces, end: t };
+  scenes.forEach((sc, i) => {
+    sc.e = i < scenes.length - 1 ? scenes[i + 1].s : +Math.max(speak[i].e + 1.0, sc.s + MIN.cta).toFixed(3);
+  });
+  return { scenes, pieces, speak, end: scenes[scenes.length - 1].e };
 }
 
 async function render(cfg, frameDir) {
@@ -159,7 +164,7 @@ function saveResult(r) { fs.writeFileSync(path.join(OUT, 'result.json'), JSON.st
     }
   }
   const tl = timeline(segs);
-  const cfg = Object.assign({}, next.render, { job: next.job, scenes: tl.scenes, emojiDir: 'file://' + path.join(DIR, 'node_modules/@twemoji/svg') });
+  const cfg = Object.assign({}, next.render, { job: next.job, scenes: tl.scenes, speak: tl.speak, lines: next.lines || [], emojiDir: 'file://' + path.join(DIR, 'node_modules/@twemoji/svg') });
   // 2-3. frames
   const frames = path.join(OUT, 'frames');
   const meta = await render(cfg, frames);
