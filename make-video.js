@@ -135,7 +135,7 @@ async function render(cfg, frameDir) {
 
 function saveResult(r) { fs.writeFileSync(path.join(OUT, 'result.json'), JSON.stringify(r)); }
 
-(async () => {
+async function main() {
   fs.mkdirSync(OUT, { recursive: true });
   // 1. the job, script, captions and voice
   const manual = env.GITHUB_EVENT_NAME ? env.GITHUB_EVENT_NAME !== 'schedule' : true;
@@ -182,19 +182,66 @@ function saveResult(r) { fs.writeFileSync(path.join(OUT, 'result.json'), JSON.st
   log('Video:', (fs.statSync(mp4).size / 1e6).toFixed(1), 'MB');
   if (env.SKIP_POST) { log('SKIP_POST set: not posted. File:', mp4); saveResult({ id: next.id, skipPost: true }); return; }
   // 5. post: one network or two per call, so each call stays well inside the web app's time limit.
-  //    Threads takes the video from Instagram's (or Facebook's) copy, so it goes last and needs no upload.
+  //    Threads takes the video from a public link (no upload), so it goes last.
   const b64 = fs.readFileSync(mp4).toString('base64');
   const results = {};
-  const rounds = next.test ? [['preview']] : [['telegram', 'facebook'], ['youtube'], ['instagram'], ['threads']];
+  /* THREADS_LATER (set by the GitHub workflow): Threads is posted by a later step ("node make-video.js threads"), after
+     the workflow has put the MP4 on the repository's GitHub Pages site, because Threads cannot take the video from
+     Instagram's or Facebook's own links. */
+  const later = !next.test && /^(1|true|yes)$/i.test(env.THREADS_LATER || '');
+  let siteFile = null;
+  if (later) {
+    siteFile = Date.now() + '.mp4';          // a new name each time, so no cached copy of an older video is served
+    const site = path.join(OUT, 'site');
+    fs.rmSync(site, { recursive: true, force: true });
+    fs.mkdirSync(site, { recursive: true });
+    fs.copyFileSync(mp4, path.join(site, siteFile));
+    fs.writeFileSync(path.join(site, '.nojekyll'), '');
+    fs.writeFileSync(path.join(site, 'index.html'), '<!doctype html><meta charset="utf-8"><title>Remote Job Drop</title><p>Remote Job Drop: new remote jobs daily.</p>');
+  }
+  const rounds = next.test ? [['preview']] : [['telegram', 'facebook'], ['youtube'], ['instagram']].concat(later ? [] : [['threads']]);
   for (const nets of rounds) {
     try { Object.assign(results, (await webApp({ action: 'post', id: next.id, mp4: nets[0] === 'threads' ? undefined : b64, networks: nets })).results); }
     catch (e) { nets.forEach(n => { results[n] = 'failed: ' + e.message; }); }
     log(nets.join(' + ') + ':', nets.map(n => n + ' ' + results[n]).join(' | '));
   }
-  saveResult({ id: next.id, kind: next.bucket, job: next.job.title, test: !!next.test, results });
-  if (Object.values(results).every(v => /^failed|^off/.test(String(v)))) process.exit(1);
-})().catch(e => {
+  saveResult({ id: next.id, kind: next.bucket, job: next.job.title, test: !!next.test, results, siteFile });
+  if (!later && Object.values(results).every(v => /^failed|^off/.test(String(v)))) process.exit(1);
+}
+
+/** "node make-video.js threads": posts the video made by the step before to Threads, from the GitHub Pages copy
+    (PAGE_URL, from the deploy step). Without PAGE_URL the web app falls back to the Instagram or Facebook link. */
+async function threadsStep() {
+  const r = JSON.parse(fs.readFileSync(path.join(OUT, 'result.json'), 'utf8'));
+  if (!r.id || r.test || !r.siteFile) { log('Nothing to post to Threads.'); return; }
+  let videoUrl;
+  const base = (env.PAGE_URL || '').trim();
+  if (/^https?:\/\//.test(base)) {
+    videoUrl = base.replace(/\/?$/, '/') + r.siteFile;
+    // a new site can take a little while to reach every server: wait until the video itself is served
+    let ok = false;
+    for (let i = 0; i < 24 && !ok; i++) {
+      try {
+        const res = await fetch(videoUrl, { method: 'HEAD' });
+        ok = res.ok && /video\/mp4/.test(res.headers.get('content-type') || '');
+      } catch (e) { ok = false; }
+      if (!ok) await new Promise(f => setTimeout(f, 5000));
+    }
+    log('Video online for Threads:', ok ? 'yes' : 'not yet, trying anyway');
+  } else {
+    log('No GitHub Pages address: Threads gets the Instagram or Facebook link.');
+  }
+  r.results = r.results || {};
+  try { Object.assign(r.results, (await webApp({ action: 'post', id: r.id, networks: ['threads'], videoUrl })).results); }
+  catch (e) { r.results.threads = 'failed: ' + e.message; }
+  log('threads:', r.results.threads);
+  saveResult(r);
+  if (Object.values(r.results).every(v => /^failed|^off/.test(String(v)))) process.exit(1);
+}
+
+const threadsOnly = process.argv[2] === 'threads';
+(threadsOnly ? threadsStep() : main()).catch(e => {
   console.error(e);
-  try { saveResult({ error: String(e && e.message ? e.message : e).slice(0, 300) }); } catch (x) { /* nothing to save */ }
+  if (!threadsOnly) { try { saveResult({ error: String(e && e.message ? e.message : e).slice(0, 300) }); } catch (x) { /* nothing to save */ } }
   process.exit(1);
 });
