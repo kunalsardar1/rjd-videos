@@ -27,11 +27,15 @@ concurrency:
 
 permissions:
   contents: write
+  pages: write      # the GitHub Pages copy of the video, for Threads
+  id-token: write
 
 jobs:
   video:
     runs-on: ubuntu-24.04   # Playwright does not support ubuntu-latest (26.04) yet
     timeout-minutes: 30
+    environment:
+      name: github-pages
     steps:
       - uses: actions/checkout@v4
 
@@ -53,7 +57,33 @@ jobs:
           RJD_KEY: ${{ secrets.RJD_KEY }}
           KIND: ${{ inputs.kind }}
           TEST: ${{ inputs.test }}
+          THREADS_LATER: '1'
         run: node make-video.js
+
+      # Threads cannot take the video from Instagram's or Facebook's links, so the MP4 goes on this repository's
+      # GitHub Pages site (only the latest video is kept there) and Threads takes it from there.
+      - name: Put the video online for Threads
+        id: site
+        if: always() && hashFiles('out/site/*.mp4') != ''
+        continue-on-error: true
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: out/site
+          retention-days: 1
+
+      - name: Publish the video page
+        id: pages
+        if: always() && steps.site.outcome == 'success'
+        continue-on-error: true
+        uses: actions/deploy-pages@v4
+
+      - name: Post to Threads
+        if: always() && hashFiles('out/site/*.mp4') != ''
+        env:
+          RJD_URL: ${{ secrets.RJD_URL }}
+          RJD_KEY: ${{ secrets.RJD_KEY }}
+          PAGE_URL: ${{ steps.pages.outputs.page_url }}
+        run: node make-video.js threads
 
       - name: Keep the video for 7 days (open this run, then Artifacts)
         if: always()
