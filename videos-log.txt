@@ -185,3 +185,4 @@
 2026-11-20 15:31 UTC |  | no video (see the run log) |  | 
 2026-11-20 16:59 UTC |  | no video (see the run log) |  | 
 2026-11-20 23:45 UTC | english | English (New Zealand) Linguistic Expert | TEST | preview: emailed to you
+2026-11-21 05:37 UTC |  | Web app answered 200 (check the deployment: Web app, Execute as Me, Who has access: Anyone): window['ppConfig'] = {productName: '26981ed0d57bbad37e728ff58134270c', deleteIsEnforced: false , sealIsEnforced: false , heartbeatRate: 0.5 , periodicReportingRateMillis: 60000.0 , disableAllReporting |  | 
