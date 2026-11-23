@@ -199,3 +199,4 @@
 2026-11-22 16:52 UTC | specialist | Domain Expert – Python (coding-agent benchm… |  | telegram: msg 1127, facebook: video 2607655739750963, youtube: https://youtu.be/ku85HNCEpK4, instagram: reel 17874609750645681, threads: post 18110971750955897
 2026-11-23 05:47 UTC | hindi | Hindi Transcriber (AI Trainer) |  | telegram: msg 1134, facebook: video 2370078317123533, youtube: https://youtu.be/u_Gwt_XA0z4, instagram: reel 18003155772040331, threads: post 18116975180049068
 2026-11-23 08:44 UTC | fast | PDF Annotation & Transcription Expe… – Odiya |  | telegram: msg 1141, facebook: video 1716868460020243, youtube: https://youtu.be/mYtjfdWfLLE, instagram: reel 18152065240561108, threads: post 18134935475488953
+2026-11-23 22:31 UTC | hindi | AI Quality Analyst (Personalization) - Hindi |  | telegram: msg 1162, facebook: video 1507183944601572, youtube: https://youtu.be/DrlxByiln6g, instagram: reel 18141319561731901, threads: post 17948211042368843
