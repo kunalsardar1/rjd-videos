@@ -53,8 +53,12 @@ async function webApp(body, ms) {
   }
   const res = await request(url, 'POST', JSON.stringify(Object.assign({ key: (env.RJD_KEY || '').trim() }, body)), ms || 420000);
   let j; try { j = JSON.parse(res.text); } catch (e) {
+    /* A Google page instead of JSON: most often the web app ran past its 6 minutes (Gemini was slow), sometimes a
+       deployment problem. */
     const t = res.text.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
-    throw new Error('Web app answered ' + res.status + ' (check the deployment: Web app, Execute as Me, Who has access: Anyone): ' + t.slice(0, 200));
+    const err = new Error('Web app answered ' + res.status + ' with a Google page, not JSON (it may have run out of time; if this keeps happening, check the deployment): ' + t.slice(0, 120));
+    err.retry = true;
+    throw err;
   }
   if (!j.ok) {
     if (j.error === 'wrong key') throw new Error('Web app: wrong key. The RJD_KEY secret must be the RJD_KEY that setupVideo shows');
@@ -144,8 +148,19 @@ async function main() {
     log('Web app OK, video mode:', ping.mode);
   }
   const t0 = Date.now();
-  const next = env.FIXTURE ? JSON.parse(fs.readFileSync(env.FIXTURE, 'utf8')) :
-    await webApp({ action: 'next', trigger: manual ? 'manual' : 'schedule', bucket: env.KIND || null, test: /^(true|yes|1)$/i.test(env.TEST || '') || undefined });
+  let next;
+  if (env.FIXTURE) next = JSON.parse(fs.readFileSync(env.FIXTURE, 'utf8'));
+  else {
+    const ask = { action: 'next', trigger: manual ? 'manual' : 'schedule', bucket: env.KIND || null, test: /^(true|yes|1)$/i.test(env.TEST || '') || undefined };
+    try { next = await webApp(ask); }
+    catch (e) {
+      // the web app writes nothing until its answer is ready, so asking again cannot make a double
+      if (!e.retry && !/did not answer|timed out|ECONNRESET|socket hang up/i.test(e.message)) throw e;
+      log('First try failed (' + e.message.slice(0, 90) + '); trying once more in 30 s.');
+      await new Promise(f => setTimeout(f, 30000));
+      next = await webApp(ask);
+    }
+  }
   if (next.skip) { log('Nothing to make:', next.skip); saveResult({ skip: next.skip }); return; }
   log('Job:', next.job.title, '|', next.bucket, '| voice:', next.voice || (next.wav ? 'yes' : 'no'), next.test ? '| TEST' : '', '| web app took', Math.round((Date.now() - t0) / 1000), 's');
   let segs = null;
