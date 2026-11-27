@@ -224,3 +224,4 @@
 2026-11-27 14:21 UTC | fast | Image Annotator |  | telegram: msg 1294, facebook: video 1701097958242722, youtube: https://youtu.be/ZaHB0l6mopw, instagram: reel 18111085019195663, threads: post 17994474003077076
 2026-11-27 17:29 UTC | specialist | Research Scientist - Computer Science & Com… |  | telegram: msg 1306, facebook: video 1458948813059296, youtube: https://youtu.be/92v9bEWbRzk, instagram: reel 18117348986110199, threads: failed: Threads could not process the video (UNKNOWN)
 2026-11-27 19:43 UTC | hindi | Urdu Specialist |  | telegram: msg 1307, facebook: video 1154357143668409, youtube: https://youtu.be/efiq7fUEczQ, instagram: reel 18579137257076650, threads: post 18232807297336809
+2026-11-27 21:59 UTC | fast | Generalist (Must own MacBook) |  | telegram: msg 1308, facebook: video 2125452874739985, youtube: https://youtu.be/RdPa8HfGIik, instagram: reel 18031024916927782, threads: post 18147477415616243
