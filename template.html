@@ -134,6 +134,12 @@ if (LANG && NATIVE[LANG]) {
   hEmoji = el(EM(topicEmoji), '', { top: '640px', fontSize: '230px', lineHeight: '1' }); centerX(hEmoji);
 }
 const hWords = kinetic(LINES[0] || CFG.hookScreen, { y: LANG ? 1340 : 980, size: LANG ? 80 : 104, maxH: LANG ? 300 : 520, s: hSpeak.s, e: hSpeak.e });
+/* The pay, shown from the first second so viewers see it before they scroll away. */
+const hPayTxt = String(J.pay || '');
+const hPayMoney = (hPayTxt.match(/[$₹€£]\s?[\d,.]+[kK]?(\s*[-–]\s*[$₹€£]?\s?[\d,.]+[kK]?)?/) || [''])[0].replace(/\s+/g, '');
+const hPayUnit = /hr|hour/i.test(hPayTxt) ? '/HR' : /month|mo\b/i.test(hPayTxt) ? '/MONTH' : /year|yr|annual/i.test(hPayTxt) ? '/YEAR' : '';
+const hPay = hPayMoney ? el(EM('1f4b5') + '<span>' + esc((/up to/i.test(hPayTxt) ? 'UP TO ' : '') + hPayMoney + hPayUnit) + '</span>', 'pill', { top: '400px', fontSize: '60px', color: Y }) : null;
+if (hPay) { fitWidth(hPay, 980, 36); centerX(hPay); }
 sfx(H.s + 0.1, 'swoosh', 0.8);
 
 /* ---------- scene 2: title ---------- */
@@ -200,11 +206,12 @@ window.render = function (t) {
     f.style.transform = `translate(${12 * Math.sin(t * 0.4 + i * 1.3)}px,${-t * (4 + i % 3 * 2)}px)`; });
 
   /* hook */
-  const hOn = t < H.e + 0.05; [hBig, hSub, hCount, hEmoji, hWords.box].forEach(e => e && vis(e, hOn));
+  const hOn = t < H.e + 0.05; [hBig, hSub, hCount, hEmoji, hWords.box, hPay].forEach(e => e && vis(e, hOn));
   if (hOn) {
     if (hBig) { popIn(hBig, t, H.s + 0.05, 0.5, { from: 1.35, blur: 26 }); hBig.style.transform += ` translateY(${-6 * Math.sin(t * 1.6)}px)`; popIn(hSub, t, H.s + 0.35, 0.35, { y: 16 }); popIn(hCount, t, H.s + 0.55, 0.35, { y: 10 }); }
     if (hEmoji) { popIn(hEmoji, t, H.s + 0.05, 0.5, { bounce: true, from: 0.2 }); hEmoji.style.transform += ` rotate(${6 * Math.sin(t * 2.2)}deg)`; }
-    kineticRender(hWords, t); [hBig, hSub, hCount, hEmoji, hWords.box].forEach(e => e && fadeOut(e, t, H.e + 0.05));
+    if (hPay) { popIn(hPay, t, H.s + 0.02, 0.4, { bounce: true, from: 0.4, blur: 8 }); hPay.style.transform += ` scale(${1 + 0.02 * Math.sin(t * 4)})`; }
+    kineticRender(hWords, t); [hBig, hSub, hCount, hEmoji, hWords.box, hPay].forEach(e => e && fadeOut(e, t, H.e + 0.05));
   }
   /* title */
   const tOn = t >= T.s - 0.02 && t < T.e + 0.05; [tTag, tTitle, tWords.box].forEach(e => vis(e, tOn));
